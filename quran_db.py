@@ -1,20 +1,19 @@
 """
 quran_db.py
 ───────────
-Loads the diacritized Quran reference text.
+Diacritized Quran reference database.
 
-Primary source: quran_transcriptions_clean.json (Husary dataset, fully diacritized)
-  Format: list of {"audio_filepath": "audio/001_001.wav", "text": "...", ...}
-  Key:    "001001" (surah * 1000 + ayah, zero-padded 6 digits)
+Bundled data: data/quran_diacritized.json
+  Format: {"001001": "بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ", ...}
+  Keys:   SSSAAA  — 3-digit surah + 3-digit ayah, e.g. "001001"
+  Source: Minshawi recitation dataset, Husary diacritized transcriptions
+  Total:  6,236 ayat
 
 Usage:
     from quran_db import QuranDB
     db = QuranDB()
     text = db.get(surah=1, ayah=1)
     # → "بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ"
-
-    all_fatiha = db.get_surah(1)
-    # → [(1, "بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ"), (2, "الْحَمْدُ ..."), ...]
 """
 
 from __future__ import annotations
@@ -26,38 +25,24 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# Path relative to this file
-_HERE = Path(__file__).parent
-_DEFAULT_JSON = _HERE.parent / "fine-tuning" / "quran_transcriptions_clean.json"
+_DATA_FILE = Path(__file__).parent / "data" / "quran_diacritized.json"
 
 
 class QuranDB:
-    """In-memory lookup for diacritized Quran text."""
-
     def __init__(self, json_path: Optional[Path] = None):
-        path = Path(json_path) if json_path else _DEFAULT_JSON
-        self._db: dict[str, str] = {}   # "001001" → diacritized text
+        path = Path(json_path) if json_path else _DATA_FILE
+        self._db: dict[str, str] = {}
         self._load(path)
 
     def _load(self, path: Path) -> None:
         if not path.exists():
-            logger.warning("Quran DB not found at %s — DB will be empty", path)
-            return
-
+            raise FileNotFoundError(
+                f"Quran data not found at {path}\n"
+                "Make sure data/quran_diacritized.json is present."
+            )
         with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-
-        if isinstance(data, list):
-            # Format: [{"audio_filepath": "audio/001_001.wav", "text": "..."}, ...]
-            for entry in data:
-                fp = Path(entry["audio_filepath"]).stem   # "001_001"
-                key = fp.replace("_", "")                 # "001001"
-                self._db[key] = entry["text"]
-        elif isinstance(data, dict):
-            # Format: {"001001": "text", ...}
-            self._db = {k: v for k, v in data.items()}
-
-        logger.info("QuranDB loaded %d ayat", len(self._db))
+            self._db = json.load(f)
+        logger.info("QuranDB loaded %d ayat from %s", len(self._db), path)
 
     def _key(self, surah: int, ayah: int) -> str:
         return f"{surah:03d}{ayah:03d}"
@@ -68,23 +53,20 @@ class QuranDB:
 
     def get_surah(self, surah: int) -> list[tuple[int, str]]:
         """Return all ayat of a surah as [(ayah_num, text), ...]."""
-        results = []
         prefix = f"{surah:03d}"
-        for key, text in sorted(self._db.items()):
-            if key.startswith(prefix):
-                ayah = int(key[3:])
-                results.append((ayah, text))
-        return results
+        return [
+            (int(k[3:]), v)
+            for k, v in sorted(self._db.items())
+            if k.startswith(prefix)
+        ]
 
-    def search(self, text_fragment: str) -> list[tuple[int, int, str]]:
-        """Search for ayat containing a text fragment. Returns [(surah, ayah, text)]."""
-        results = []
-        for key, text in self._db.items():
-            if text_fragment in text:
-                surah = int(key[:3])
-                ayah  = int(key[3:])
-                results.append((surah, ayah, text))
-        return results
+    def search(self, fragment: str) -> list[tuple[int, int, str]]:
+        """Search ayat containing a text fragment. Returns [(surah, ayah, text)]."""
+        return [
+            (int(k[:3]), int(k[3:]), v)
+            for k, v in self._db.items()
+            if fragment in v
+        ]
 
     def __len__(self) -> int:
         return len(self._db)
@@ -95,7 +77,6 @@ class QuranDB:
         return item in self._db
 
 
-# Module-level singleton — load once, reuse everywhere
 _instance: Optional[QuranDB] = None
 
 def get_db() -> QuranDB:

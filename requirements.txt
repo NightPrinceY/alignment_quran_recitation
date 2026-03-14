@@ -1,0 +1,19 @@
+# Core ML
+torch>=2.1.0
+torchaudio>=2.1.0
+nemo_toolkit[asr]>=1.23.0
+
+# Audio I/O
+soundfile>=0.12.1
+numpy>=1.24.0
+
+# Server
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.9
+
+# Audio conversion (optional — needed for MP3 input to align_server)
+ffmpeg-python>=0.2.0
+
+# Resampling (optional — needed if input audio is not 16kHz)
+resampy>=0.4.3
