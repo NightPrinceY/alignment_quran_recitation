@@ -6,6 +6,26 @@ Built on **NVIDIA NeMo FastConformer** (`nvidia/stt_ar_fastconformer_hybrid_larg
 
 ---
 
+## Live Demo & Docker Image
+
+| | Link |
+|---|---|
+| 🕌 **Live Demo** | [huggingface.co/spaces/NightPrince/quran-recitation-checker](https://huggingface.co/spaces/NightPrince/quran-recitation-checker) |
+| 🐳 **Docker Image** | [hub.docker.com/r/nightprincey/quran-recitation-checker](https://hub.docker.com/r/nightprincey/quran-recitation-checker) |
+
+```bash
+# Pull and run (CPU)
+docker pull nightprincey/quran-recitation-checker:latest
+docker run -p 7860:7860 nightprincey/quran-recitation-checker:latest
+
+# GPU (requires nvidia-docker)
+docker run --gpus all -p 7860:7860 nightprincey/quran-recitation-checker:latest
+```
+
+Then open http://localhost:7860
+
+---
+
 ## How It Works
 
 Standard STT produces a transcript but cannot tell you *which word was wrong* or *how wrong it was*. Forced alignment solves this:
